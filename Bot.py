@@ -22,14 +22,13 @@ app = Flask(__name__)
 @app.route("/", methods=["GET", "HEAD"])
 def home():
     return "Bot is running 🚀", 200
-
 # === Webhook Endpoint ===
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def process_webhook():
     try:
-        json_data = request.get_json(force=True)
-        logger.info(f"📩 Incoming update: {json_data}")
-        update = telebot.types.Update.de_json(json_data)
+        json_str = request.get_data().decode("UTF-8")   # ambil raw string JSON
+        logger.info(f"📩 Incoming update: {json_str}")
+        update = telebot.types.Update.de_json(json_str)  # kirim string, bukan dict
         bot.process_new_updates([update])
         logger.info("✅ Update diteruskan ke handlers")
     except Exception as e:

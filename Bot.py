@@ -333,7 +333,17 @@ def webhook():
 
 
 if __name__ == '__main__':
-    # Gunakan host 0.0.0.0 biar bisa jalan di hosting
+    # Set webhook otomatis ke URL Render
+    RENDER_URL = os.getenv("RENDER_URL", "https://bot-lwq9.onrender.com")
+    full_webhook_url = f"{RENDER_URL}/{BOT_TOKEN}"
+
+    try:
+        setwebhook_url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={full_webhook_url}"
+        resp = requests.get(setwebhook_url)
+        logger.info(f"SetWebhook response: {resp.text}")
+    except Exception as e:
+        logger.error(f"Gagal setWebhook: {e}")
+
+    # Jalanin Flask server
     port = int(os.getenv('PORT', 5000))
-    logger.info("Starting bot with webhook...")
     app.run(host="0.0.0.0", port=port)

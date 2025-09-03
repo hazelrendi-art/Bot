@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Flask, request
 
 # ===== Konfigurasi Bot =====
-BOT_TOKEN = os.getenv('BOT_TOKEN', 'ISI_TOKENMU_DISINI')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '7566896092:AAES1sc_K3RdeA-4vAVOxXhWSbO_Fby8Ges')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ===== Anonymous Chat Feature =====
@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ===== Groq AI Integration =====
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "ISI_API_KEY_GROQ")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 

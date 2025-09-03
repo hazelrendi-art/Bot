@@ -1,15 +1,22 @@
 import os
 import logging
 import requests
+import time
 from datetime import datetime
 from flask import Flask, request
 import telebot
 
-# ===== Konfigurasi Bot =====
-BOT_TOKEN = os.getenv("BOT_TOKEN", )
-bot = telebot.TeleBot(BOT_TOKEN)
+# ===== Config =====
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+RENDER_URL = os.getenv("RENDER_URL")
 
-# ===== Flask App =====
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN environment variable not set!")
+if not GROQ_API_KEY:
+    raise ValueError("❌ GROQ_API_KEY environment variable not set!")
+
+bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
 # ===== Logging =====
@@ -19,26 +26,91 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ===== Feature Flags =====
-waiting_users = []  # antrean user untuk anonymous chat
-active_chats = {}   # pasangan chat {user_id: partner_id}
-ai_mode_enabled = False  # default: AI off
+# ===== Anonymous chat =====
+waiting_users = []
+active_chats = {}
 
-# ===== Groq AI Config =====
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", )
+# ===== Groq AI =====
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# === Command AI ===
+# ===== Handlers =====
+
+# --- /start ---
+@bot.message_handler(commands=['start'])
+def start_cmd(message):
+    text = f"""
+🤖 *Welcome!*
+
+Halo {message.from_user.first_name} 👋
+
+Perintah:
+/help - Daftar perintah
+/ai <pertanyaan> - Tanya ke AI
+/anonymous - Chat anonim
+/stop - Stop chat anonim
+"""
+    bot.reply_to(message, text, parse_mode="Markdown")
+
+# --- /help ---
+@bot.message_handler(commands=['help'])
+def help_cmd(message):
+    text = """
+📚 *Perintah:*
+/start - Welcome
+/help - Bantuan
+/info - Info bot
+/time - Waktu server
+/echo <text> - Echo message
+/facebook <link> - Download Facebook video
+/ai <pertanyaan> - Tanya AI
+/anonymous - Chat anonim
+/stop - Keluar chat anonim
+"""
+    bot.reply_to(message, text, parse_mode="Markdown")
+
+# --- /info ---
+@bot.message_handler(commands=['info'])
+def info_cmd(message):
+    text = f"""
+ℹ️ *Bot Info*
+🤖 Bot: PyTelegramBot
+⚡ Status: Online
+📅 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+👤 Your ID: {message.from_user.id}
+"""
+    bot.reply_to(message, text, parse_mode="Markdown")
+
+# --- /time ---
+@bot.message_handler(commands=['time'])
+def time_cmd(message):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    bot.reply_to(message, f"🕐 Waktu server: `{now}`", parse_mode="Markdown")
+
+# --- /echo ---
+@bot.message_handler(commands=['echo'])
+def echo_cmd(message):
+    parts = message.text.split(' ', 1)
+    if len(parts) > 1:
+        bot.reply_to(message, f"🔄 *Echo:* {parts[1]}", parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "Gunakan: `/echo <text>`", parse_mode="Markdown")
+
+# --- /ai ---
 @bot.message_handler(commands=['ai'])
-def ai_chat(message):
+def ai_cmd(message):
     try:
-        command_parts = message.text.split(' ', 1)
-        if len(command_parts) <= 1:
-            bot.reply_to(message, "❌ Contoh: `/ai apa itu python?`", parse_mode="Markdown")
+        parts = message.text.split(' ', 1)
+        if len(parts) <= 1:
+            bot.reply_to(message, "❌ Gunakan: `/ai <pertanyaan>`", parse_mode="Markdown")
             return
 
-        user_query = command_parts[1].strip()
-        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+        user_query = parts[1].strip()
+        bot.send_chat_action(message.chat.id, 'typing')
+
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
         payload = {
             "model": "llama-3.1-8b-instant",
             "messages": [
@@ -46,53 +118,26 @@ def ai_chat(message):
                 {"role": "user", "content": user_query}
             ]
         }
-
-        response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
+        resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
             answer = data["choices"][0]["message"]["content"]
-            bot.reply_to(message, f"🤖 *AI:*\n{answer}", parse_mode="Markdown")
+            bot.reply_to(message, f"🤖 *AI Response:*\n{answer}", parse_mode="Markdown")
         else:
-            bot.reply_to(message, "❌ Gagal hubungi AI.")
+            bot.reply_to(message, f"❌ AI Error: {resp.status_code}")
     except Exception as e:
-        logger.error(f"AI Error: {e}")
-        bot.reply_to(message, "❌ Error AI.")
+        logger.error(f"AI command error: {e}")
+        bot.reply_to(message, "❌ Terjadi kesalahan AI.")
 
-# === Perintah dasar ===
-@bot.message_handler(commands=['start'])
-def start_cmd(message):
-    bot.reply_to(message, f"""
-🤖 *Bot Telegram Online via Render!*
-
-Halo {message.from_user.first_name} 👋
-
-Perintah:
-/help - Daftar perintah
-/ai <tanya> - Tanya ke AI
-/anonymous - Chat anonim
-/stop - Stop chat anonim
-""", parse_mode="Markdown")
-
-@bot.message_handler(commands=['help'])
-def help_cmd(message):
-    bot.reply_to(message, """
-📚 *Perintah:*
-/start - Welcome
-/help - Bantuan
-/ai <query> - Tanya AI
-/anonymous - Chat anonim
-/stop - Keluar chat anonim
-""", parse_mode="Markdown")
-
-# === Anonymous Chat ===
+# --- /anonymous ---
 @bot.message_handler(commands=['anonymous'])
-def anonymous_start(message):
+def anon_start(message):
     user_id = message.from_user.id
     if user_id in active_chats:
-        bot.reply_to(message, "❌ Kamu sudah dalam obrolan.")
+        bot.reply_to(message, "❌ Sudah dalam obrolan.")
         return
     if user_id in waiting_users:
-        bot.reply_to(message, "⏳ Kamu sudah menunggu.")
+        bot.reply_to(message, "⏳ Menunggu pasangan...")
         return
     if waiting_users:
         partner_id = waiting_users.pop(0)
@@ -102,10 +147,11 @@ def anonymous_start(message):
         bot.send_message(partner_id, "✅ Terhubung! /stop untuk keluar.")
     else:
         waiting_users.append(user_id)
-        bot.reply_to(message, "⏳ Menunggu pasangan...")
+        bot.reply_to(message, "⏳ Menunggu pasangan anonim...")
 
+# --- /stop ---
 @bot.message_handler(commands=['stop'])
-def stop_chat(message):
+def anon_stop(message):
     user_id = message.from_user.id
     if user_id in active_chats:
         partner_id = active_chats.pop(user_id)
@@ -116,15 +162,74 @@ def stop_chat(message):
         waiting_users.remove(user_id)
         bot.reply_to(message, "❌ Batal menunggu.")
     else:
-        bot.reply_to(message, "ℹ️ Kamu tidak dalam chat.")
+        bot.reply_to(message, "ℹ️ Tidak dalam chat.")
 
+# --- Relay messages for anonymous chat ---
 @bot.message_handler(func=lambda m: m.from_user.id in active_chats, content_types=['text'])
 def relay_message(message):
     partner_id = active_chats.get(message.from_user.id)
     if partner_id:
         bot.send_message(partner_id, f"💬 {message.text}")
 
-# === Flask Routes untuk Render ===
+# --- /facebook ---
+@bot.message_handler(commands=['facebook'])
+def facebook_cmd(message):
+    try:
+        parts = message.text.split(' ', 1)
+        if len(parts) <= 1:
+            bot.reply_to(message, "❌ Gunakan: `/facebook <link>`", parse_mode="Markdown")
+            return
+        fb_url = parts[1].strip()
+        if 'facebook.com' not in fb_url and 'fb.com' not in fb_url:
+            bot.reply_to(message, "❌ URL Facebook tidak valid!")
+            return
+
+        msg = bot.reply_to(message, "⏳ Processing...")
+        api_url = "https://api.ferdev.my.id/downloader/facebook"
+        params = {"link": fb_url, "apikey": "key-Adhrian123"}
+        resp = requests.get(api_url, params=params, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('success'):
+                d = data.get('data', {})
+                hd_url = d.get('hd')
+                sd_url = d.get('sd')
+                title = d.get('title', 'Video Facebook')
+                text = f"✅ *Download: {title}*\n"
+                if hd_url: text += f"• [HD]({hd_url})\n"
+                if sd_url: text += f"• [SD]({sd_url})"
+                bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+            else:
+                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id, message_id=msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id, message_id=msg.message_id)
+    except Exception as e:
+        logger.error(f"Facebook error: {e}")
+        bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
+
+# --- Fallback text handler ---
+@bot.message_handler(content_types=['text'])
+def text_handler(message):
+    text = message.text.lower()
+    name = message.from_user.first_name or "Friend"
+    if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
+        bot.reply_to(message, f"Hello {name}! 👋")
+    elif 'bot' in text:
+        bot.reply_to(message, "Yes, saya bot 🤖")
+    else:
+        bot.reply_to(message, f"Pesan diterima: {message.text}")
+
+# --- Unknown commands ---
+@bot.message_handler(func=lambda m: m.text.startswith('/'))
+def unknown_cmd(message):
+    bot.reply_to(message, f"❓ Unknown command `{message.text}`. Ketik /help", parse_mode="Markdown")
+
+# --- Media messages ---
+@bot.message_handler(content_types=['photo','video','audio','document','voice','sticker'])
+def media_handler(message):
+    bot.reply_to(message, "Terima kasih! Pesan media diterima ✅")
+
+# ===== Flask webhook =====
 @app.route("/")
 def home():
     return "Bot is running!"
@@ -138,11 +243,21 @@ def webhook():
         logger.error(f"Webhook error: {e}")
     return "OK", 200
 
+# ===== Main =====
+def main():
+    try:
+        if RENDER_URL:
+            bot.remove_webhook()
+            bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+            logger.info("Webhook set successfully!")
+        else:
+            logger.info("No webhook URL, using polling...")
+            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        time.sleep(5)
+        main()
+
 if __name__ == "__main__":
-    # Set webhook saat startup
-    render_url = os.getenv("RENDER_URL")
-    if render_url:
-        bot.remove_webhook()
-        bot.set_webhook(url=f"{render_url}/{BOT_TOKEN}")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    print("🤖 Telegram Bot Starting...")
+    main()

@@ -1,7 +1,6 @@
 import os
 import logging
 import requests
-import time
 from datetime import datetime
 from flask import Flask, request
 import telebot
@@ -9,21 +8,20 @@ import telebot
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-RENDER_URL = os.getenv("RENDER_URL")
+RENDER_URL = os.getenv("RENDER_URL")  # URL Render, misal https://namabot.onrender.com
 
 if not BOT_TOKEN:
     raise ValueError("❌ BOT_TOKEN environment variable not set!")
 if not GROQ_API_KEY:
     raise ValueError("❌ GROQ_API_KEY environment variable not set!")
+if not RENDER_URL:
+    raise ValueError("❌ RENDER_URL environment variable not set!")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
 # ===== Logging =====
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # ===== Anonymous chat =====
@@ -45,7 +43,7 @@ Halo {message.from_user.first_name} 👋
 
 Perintah:
 /help - Daftar perintah
-/ai <pertanyaan> - Tanya ke AI
+/ai <pertanyaan> - Tanya AI
 /anonymous - Chat anonim
 /stop - Stop chat anonim
 """
@@ -198,11 +196,14 @@ def facebook_cmd(message):
                 text = f"✅ *Download: {title}*\n"
                 if hd_url: text += f"• [HD]({hd_url})\n"
                 if sd_url: text += f"• [SD]({sd_url})"
-                bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+                bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id,
+                                      parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id, message_id=msg.message_id)
+                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id,
+                                      message_id=msg.message_id)
         else:
-            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id, message_id=msg.message_id)
+            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id,
+                                  message_id=msg.message_id)
     except Exception as e:
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
@@ -237,27 +238,24 @@ def home():
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     try:
-        update = telebot.types.Update.de_json(request.data.decode("utf-8"))
+        json_data = request.get_json()
+        update = telebot.types.Update.de_json(json_data)
         bot.process_new_updates([update])
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return "OK", 200
 
-# ===== Main =====
-def main():
+# ===== Setup webhook on start =====
+def setup_webhook():
     try:
-        if RENDER_URL:
-            bot.remove_webhook()
-            bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
-            logger.info("Webhook set successfully!")
-        else:
-            logger.info("No webhook URL, using polling...")
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{BOT_TOKEN}")
+        logger.info(f"✅ Webhook set at {RENDER_URL}/{BOT_TOKEN}")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        time.sleep(5)
-        main()
+        logger.error(f"❌ Failed to set webhook: {e}")
 
+# ===== Main =====
 if __name__ == "__main__":
-    print("🤖 Telegram Bot Starting...")
-    main()
+    print("🤖 Telegram Bot Starting with Webhook...")
+    setup_webhook()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

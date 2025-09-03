@@ -36,11 +36,27 @@ def process_webhook():
         logger.error(f"❌ Webhook error: {e}")
     return "OK", 200
 
+
+@app.route("/test", methods=["GET"])
+def test_send():
+    try:
+        chat_id = os.getenv("TEST_CHAT_ID", "6488874900")  # ganti ID kamu
+        bot.send_message(chat_id, "🚀 Test pesan langsung dari Flask berhasil!")
+        return "Pesan test terkirim!", 200
+    except Exception as e:
+        logger.error(f"❌ Gagal kirim test: {e}")
+        return f"Error: {e}", 500
+
 # ===== Command Handlers =====
 @bot.message_handler(commands=["start"])
 def start_cmd(message):
     logger.info(f"👉 /start dari {message.from_user.id}")
-    bot.reply_to(message, f"Halo {message.from_user.first_name}! 👋\nKetik /help untuk bantuan.")
+    try:
+        text = f"Halo {message.from_user.first_name}! 👋\nKetik /help untuk bantuan."
+        bot.reply_to(message, text, parse_mode="Markdown")
+        logger.info("✅ Balasan /start terkirim")
+    except Exception as e:
+        logger.error(f"❌ Gagal kirim balasan: {e}")
 
 @bot.message_handler(commands=["help"])
 def help_cmd(message):

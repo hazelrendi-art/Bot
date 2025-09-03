@@ -55,7 +55,7 @@ Saya bot serbaguna. Berikut yang bisa saya lakukan:
 /anonymous - Obrolan anonim
 /facebook <url> - Download video Facebook
         """
-        bot.reply_to(message, welcome_text, parse_mode="Markdown")
+        bot.reply_to(message, welcome_text)
     except Exception as e:
         logger.error(f"❌ Error di handler /start: {e}")
 

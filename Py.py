@@ -77,7 +77,7 @@ def send_help(message):
 /anonymous - Chat anonim
 /stop - Keluar dari chat anonim
     """
-    bot.reply_to(message, help_text, parse_mode="Markdown")
+    bot.reply_to(message, help_text, parse_mode="MarkdownV2")
 
 
 @bot.message_handler(commands=["info"])
@@ -91,7 +91,7 @@ def send_info(message):
 👤 Your ID: {message.from_user.id}
 💬 Chat ID: {message.chat.id}
     """
-    bot.reply_to(message, info_text, parse_mode="Markdown")
+    bot.reply_to(message, info_text, parse_mode="MarkdownV2")
 
 
 @bot.message_handler(commands=["time"])

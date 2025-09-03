@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger("MyBot")
 
 # ===== Bot Config =====
-BOT_TOKEN = os.getenv("BOT_TOKEN","7566896092:AAEQIx0dynG7xM8vO0W5wj9X4bm5wqyRX7o" )  # <--- ganti dengan tokenmu
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7566896092:AAEQIx0dynG7xM8vO0W5wj9X4bm5wqyRX7o")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ===== Flask App =====
@@ -27,15 +27,14 @@ def home():
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def process_webhook():
     try:
-        json_str = request.get_data().decode("UTF-8")
-        logger.info(f"📩 Incoming update: {json_str}")
-        update = telebot.types.Update.de_json(json_str)
+        json_data = request.get_json(force=True)
+        logger.info(f"📩 Incoming update: {json_data}")
+        update = telebot.types.Update.de_json(json_data)
         bot.process_new_updates([update])
         logger.info("✅ Update diteruskan ke handlers")
     except Exception as e:
         logger.error(f"❌ Webhook error: {e}")
     return "OK", 200
-
 
 @app.route("/test", methods=["GET"])
 def test_send():
@@ -53,7 +52,7 @@ def start_cmd(message):
     logger.info(f"👉 /start dari {message.from_user.id}")
     try:
         text = f"Halo {message.from_user.first_name}! 👋\nKetik /help untuk bantuan."
-        bot.reply_to(message, text, parse_mode="Markdown")
+        bot.reply_to(message, text, parse_mode="MarkdownV2")
         logger.info("✅ Balasan /start terkirim")
     except Exception as e:
         logger.error(f"❌ Gagal kirim balasan: {e}")
@@ -61,19 +60,19 @@ def start_cmd(message):
 @bot.message_handler(commands=["help"])
 def help_cmd(message):
     logger.info(f"👉 /help dari {message.from_user.id}")
-    text = """
-📚 *Perintah Bot:*
-/start - Mulai bot
-/help - Lihat bantuan
-/time - Waktu server
-    """
-    bot.reply_to(message, text, parse_mode="Markdown")
+    text = (
+        "📚 *Perintah Bot:*\n"
+        "/start - Mulai bot\n"
+        "/help - Lihat bantuan\n"
+        "/time - Waktu server"
+    )
+    bot.reply_to(message, text, parse_mode="MarkdownV2")
 
 @bot.message_handler(commands=["time"])
 def time_cmd(message):
     logger.info(f"👉 /time dari {message.from_user.id}")
     current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    bot.reply_to(message, f"🕒 Sekarang: `{current_time}`", parse_mode="Markdown")
+    bot.reply_to(message, f"🕒 Sekarang: `{current_time}`", parse_mode="MarkdownV2")
 
 # ===== Webhook Setup =====
 def set_webhook():

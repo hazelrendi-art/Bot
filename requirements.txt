@@ -1,2 +1,4 @@
 pytelegrambotApi 
 requests
+flask
+gunicorn

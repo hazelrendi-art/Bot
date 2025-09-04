@@ -182,7 +182,7 @@ def youtube_cmd(message):
             bot.reply_to(message, "❌ Contoh: `/yt <link youtube>`",parse_mode= 'Markdown' )
             return
         yt_url = parts[1].strip()
-        if 'youtube.com' not in yt_url and 'youtu.be.com' not in yt_url:
+        if 'youtube.com' not in yt_url and 'youtu.be' not in yt_url:
             bot.reply_to(message,"❌ Url Tidak Valid !")
             return
         

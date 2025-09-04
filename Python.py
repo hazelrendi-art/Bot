@@ -233,7 +233,7 @@ def media_handler(message):
 # ===== Flask webhook =====
 @app.route("/")
 def home():
-    return "Bot is running!"
+    return "Halo Rio Bot sudah Online, Bot is running!"
 
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():

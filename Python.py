@@ -197,7 +197,7 @@ def youtube_cmd(message):
                 title= d.get('title','video youtube')
                 dlinks = d.get('dlink')
                 teks = f"✅ Sukses mendapatkan Link {title}\n"
-                if dlinks: teks += f"Download({dlinks})"
+                if dlinks: teks += f"[Download]({dlinks})"
                 bot.edit_message_text(teks, chat_id=msg.chat.id, message_id=msg.message_id,
                                       parse_mode="Markdown", disable_web_page_preview=True)
             else:

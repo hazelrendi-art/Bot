@@ -169,13 +169,56 @@ def relay_message(message):
     if partner_id:
         bot.send_message(partner_id, f"💬 {message.text}")
 
-# --- /facebook ---
-@bot.message_handler(commands=['facebook'])
+
+
+
+# --- /DOWNLOADER FUNCTION----TOOLS
+# --- /youtube_Downloader ---
+@bot.message_handler(commands =['yt'])
+def youtube_cmd(message):
+    try:
+        parts = message.text.split(' ',1)
+        if len(parts) <= 1:
+            bot.reply_to(message, "❌ Contoh: `/yt <link youtube>`",parse_mode= 'Markdown' )
+            return
+        yt_url = parts[1].strip()
+        if 'youtube.com' not in yt_url and 'youtu.be.com' not in yt_url:
+            bot.reply_to(message,"❌ Url Tidak Valid !")
+            return
+        
+        msg = bot.reply_to(message, "⏳ Processing...")
+        api_url = "https://api.ferdev.my.id/downloader/ytmp4"
+        params = {"link": yt_url, "apikey": "key-Adhrian123"}
+        resp = requests.get(api_url, params=params, timeout=30)
+        if resp.status_code == 200:
+            data =resp.json()
+            if data.get('success'):
+                d = data.get('data',{})
+                title= d.get('title','video youtube')
+                dlinks = d.get('dlink')
+                teks = f"✅ Sukses mendapatkan Link {title}\n"
+                if dlinks: teks += f"Download({dlinks})"
+                bot.edit_message_text(teks, chat_id=msg.chat.id, message_id=msg.message_id,
+                                      parse_mode="Markdown", disable_web_page_preview=True)
+            else:
+                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id,
+                                      message_id=msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id,
+                                    message_id=msg.message_id)
+    except Exception as e:
+        logger.error(f"Facebook error: {e}")
+        bot.reply_to(message, "❌ Terjadi kesalahan saat download Youtube.")
+
+
+
+# --- /facebook_Downloader ---
+@bot.message_handler(commands=['fb'])
 def facebook_cmd(message):
     try:
         parts = message.text.split(' ', 1)
         if len(parts) <= 1:
-            bot.reply_to(message, "❌ Gunakan: `/facebook <link>`", parse_mode="Markdown")
+            bot.reply_to(message, "❌ Gunakan: `/fb <link>`", parse_mode="Markdown")
             return
         fb_url = parts[1].strip()
         if 'facebook.com' not in fb_url and 'fb.com' not in fb_url:

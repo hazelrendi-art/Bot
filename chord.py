@@ -21,8 +21,8 @@ def getChord(keyword):
             hasil = parsing.find("div", class_="post-body")
             
             if hasil:
-                print(hasil.get_text("\n", strip=True))
-                return hasil.get_text("\n", strip=True)
+                print(hasil.text("\n", strip=True))
+                return hasil.text("\n", strip=True)
             else:
                 print("❌ Tidak menemukan chord di halaman")
                 return None

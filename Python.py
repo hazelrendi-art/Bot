@@ -129,6 +129,7 @@ def ai_cmd(message):
 
 # --- /Chord search ---
 def getChord(q):
+    base = "https://www.chordtela.com/"
     try:
         url = f"{base}search/label/{q.replace(' ', '%20')}"
         res = scraper.get(url, headers=headers)

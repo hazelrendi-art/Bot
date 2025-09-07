@@ -323,24 +323,25 @@ def tohitam_info(message):
     )
 
 @bot.message_handler(content_types=['photo'])
-def image_handler(message):
+def tohitam_handler(message):
     try:
-        # Hanya proses kalau ada caption /tohitam
         if not message.caption or not message.caption.lower().startswith("/tohitam"):
             return  
 
         file_id = message.photo[-1].file_id
         file_info = bot.get_file(file_id)
-        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        file_bytes = bot.download_file(file_info.file_path)
 
         api_url = "https://api.ferdev.my.id/maker/tohitam"
-        params = {"link": file_url, "apikey": "key-Adhrian123"}
-        resp = requests.get(api_url, params=params, timeout=30)
+        files = {"file": ("image.jpg", file_bytes, "image/jpeg")}
+        data = {"apikey": "key-Adhrian123"}
+
+        resp = requests.post(api_url, data=data, files=files, timeout=30)
 
         if resp.status_code == 200:
             bot.send_photo(message.chat.id, resp.content, caption="🖤 Hasil foto hitam")
         else:
-            bot.reply_to(message, f"❌ API error: {resp.status_code}")
+            bot.reply_to(message, f"❌ API error {resp.status_code}: {resp.text}")
     except Exception as e:
         logger.error(f"Tohitam handler error: {e}")
         bot.reply_to(message, "⚠️ Terjadi kesalahan saat memproses gambar.")

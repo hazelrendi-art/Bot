@@ -254,7 +254,23 @@ def facebook_cmd(message):
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
 
-# --- Fallback text handler ---
+#  --- Fallback text handler ---
+@bot.message_handler(content_types=['text'])
+def text_handler(message):
+    # Fallback hanya aktif di private chat
+    if message.chat.type != "private":
+        return  
+
+    text = message.text.lower()
+    name = message.from_user.first_name or "Friend"
+
+    if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
+        bot.reply_to(message, f"Hello {name}! 👋")
+    elif 'bot' in text:
+        bot.reply_to(message, "Yes, saya bot 🤖")
+    else:
+        bot.reply_to(message, f"Pesan diterima: {message.text}")
+
 # --- Fallback text handler ---
 @bot.message_handler(commands=["chord"])
 def chord_cmd(message):

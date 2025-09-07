@@ -2,3 +2,4 @@ pytelegrambotApi
 requests
 flask
 gunicorn
+cloudscraper

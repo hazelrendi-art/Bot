@@ -283,27 +283,45 @@ def chord_cmd(message):
 
 # --- Fallback text handler ---
 # --- Fallback text handler ---
-@bot.message_handler(content_types=['text'])
-def text_handler(message):
-    # Fallback hanya aktif di private chat
-    if message.chat.type != "private":
-        return  
+@bot.message_handler(commands=["chord"])
+def chord_cmd(message):
+    try:
+        parts = message.text.split(" ", 1)
+        if len(parts) <= 1:
+            bot.reply_to(
+                message,
+                "❌ Gunakan: `/chord <keyword>`\n\nContoh: `/chord wali-bocah-ngapa-yang-enak`",
+                parse_mode="Markdown"
+            )
+            return
 
-    text = message.text.lower()
-    name = message.from_user.first_name or "Friend"
+        keyword = parts[1].strip()
+        bot.send_chat_action(message.chat.id, "typing")
 
-    if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
-        bot.reply_to(message, f"Hello {name}! 👋")
-    elif 'bot' in text:
-        bot.reply_to(message, "Yes, saya bot 🤖")
-    else:
-        bot.reply_to(message, f"Pesan diterima: {message.text}")
+        result = chord.getChord(keyword)
+        if result:
+            # Batas maksimal karakter Telegram (4096)
+            limit = 4000  
 
-# --- Unknown commands ---
-@bot.message_handler(func=lambda m: m.text.startswith('/'))
-def unknown_cmd(message):
-    bot.reply_to(message, f"❓ Unknown command `{message.text}`. Ketik /help", parse_mode="Markdown")
+            if len(result) > limit:
+                bot.reply_to(message, f"🎸 *Chord {keyword}:*", parse_mode="Markdown")
 
+                # Potong hasil jadi beberapa bagian
+                for i in range(0, len(result), limit):
+                    chunk = result[i:i+limit]
+                    bot.send_message(message.chat.id, chunk, parse_mode="Markdown")
+            else:
+                bot.reply_to(
+                    message,
+                    f"🎸 *Chord {keyword}:*\n\n{result}",
+                    parse_mode="Markdown"
+                )
+        else:
+            bot.reply_to(message, f"❌ Chord `{keyword}` tidak ditemukan.", parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Chord error: {e}")
+        bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
 # --- Media messages ---
 @bot.message_handler(content_types=['photo','video','audio','document','voice','sticker'])
 def media_handler(message):

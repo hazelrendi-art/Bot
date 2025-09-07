@@ -254,6 +254,11 @@ def facebook_cmd(message):
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
 
+# ---  get chord fungsi
+
+@bot.message_handler(commands=["chord"])
+def chord_cmd(message)
+
 # --- Fallback text handler ---
 # --- Fallback text handler ---
 @bot.message_handler(content_types=['text'])

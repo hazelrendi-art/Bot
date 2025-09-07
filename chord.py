@@ -24,7 +24,7 @@ def getChord(keyword: str):
             hasil = parsing.find('pre')
             
             if hasil:
-                return hasil.get_text("\n", strip=True)
+                return hasil.text
             else:
                 return None
         else:

@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from flask import Flask, request
 import telebot
+import re
 
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -36,13 +37,21 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # ===== Handlers =====
 
+
+def escape_markdown(text: str) -> str:
+    escape_chars = r'[_*[\]()~`>#+\-=|{}.!]'
+    return re.sub(escape_chars, r'\\\g<0>', text)
+
+
+
 def safe_reply(message, text):
-    """Helper reply dengan logging"""
     try:
-        bot.reply_to(message, text, parse_mode="MarkdownV2", disable_web_page_preview=True)
-        logger.info(f"✅ Reply terkirim: {text[:30]}...")
+        escaped = escape_markdown(text)
+        bot.reply_to(message, escaped, parse_mode="MarkdownV2", disable_web_page_preview=True)
+        logger.info(f"✅ Reply terkirim: {escaped[:30]}...")
     except Exception as e:
         logger.error(f"❌ Gagal kirim pesan: {e}")
+
 
 # --- /start ---
 @bot.message_handler(commands=['start'])

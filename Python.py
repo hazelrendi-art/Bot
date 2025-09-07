@@ -336,7 +336,7 @@ def zombie_handler(message):
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
 
         # Panggil API imagetozombie
-        api_url = "https://api.ferdev.my.id/tools/tozombie"  # ganti ke base API aslinya
+        api_url = "https://api.ferdev.my.id/tools/tohitam"  # ganti ke base API aslinya
         params = {
             "link": file_url,
             "apikey": "key-Adhrian123"  # pakai API key kamu

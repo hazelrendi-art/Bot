@@ -2,6 +2,7 @@ import os
 import logging
 import cloudscraper
 import requests
+import chord
 from bs4 import BeautifulSoup 
 from datetime import datetime
 from flask import Flask, request
@@ -128,56 +129,6 @@ def ai_cmd(message):
     except Exception as e:
         logger.error(f"AI command error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan AI.")
-
-# --- /Chord search ---
-def getChord(q):
-    base = "https://www.chordtela.com/"
-    scraper = cloudscraper.create_scraper()
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/115.0.0.0 Safari/537.36"
-    }
-    try:
-        url = f"{base}search/label/{q.replace(' ', '%20')}"
-        res = scraper.get(url, headers=headers)
-
-        if res.status_code == 200:
-            parsing = BeautifulSoup(res.text, "html.parser")
-            hasil = parsing.find("h2")
-            if hasil:
-                return hasil.text.strip()
-            else:
-                return None
-        else:
-            return None
-    except Exception as e:
-        return f"❌ Error: {e}"
-
-# --- /chord --- #
-@bot.message_handler(commands=['chord'])
-def chord_cmd(message):
-    try:
-        parts = message.text.split(' ', 1)
-        if len(parts) <= 1:
-            bot.reply_to(message, "❌ Gunakan: `/chord <judul atau artis>`", parse_mode="Markdown")
-            return
-        
-        keyword = parts[1].strip()
-        bot.send_chat_action(message.chat.id, 'typing')
-
-        # panggil fungsi scraping
-        result = getChord(keyword)
-
-        if result:
-            bot.reply_to(message, f"🎸 *Hasil Chord:*\n{result}", parse_mode="Markdown")
-        else:
-            bot.reply_to(message, f"❌ Tidak ditemukan chord untuk `{keyword}`", parse_mode="Markdown")
-
-    except Exception as e:
-        logger.error(f"Chord error: {e}")
-        bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
-
 
 # --- /anonymous ---
 @bot.message_handler(commands=['anonymous'])

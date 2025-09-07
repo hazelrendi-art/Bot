@@ -346,10 +346,11 @@ def setup_webhook():
         logger.info(f"✅ Webhook set at {RENDER_URL}/{BOT_TOKEN}")
     except Exception as e:
         logger.error(f"❌ Failed to set webhook: {e}")
-
+        
+setup_webhook()
 # ===== Main =====
 if __name__ == "__main__":
     print("🤖 Telegram Bot Starting with Webhook...")
-    setup_webhook()
+    
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

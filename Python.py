@@ -313,6 +313,47 @@ def text_handler(message):
     else:
         bot.reply_to(message, f"Pesan diterima: {message.text}")
 
+
+# --- Zombie Generator ---
+@bot.message_handler(commands=['zombie'])
+def zombie_info(message):
+    bot.reply_to(
+        message,
+        "🧟 Kirim foto ke saya dengan caption `/zombie` untuk diubah jadi zombie!",
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(content_types=['photo'])
+def zombie_handler(message):
+    try:
+        # Pastikan user kasih caption /zombie
+        if not message.caption or not message.caption.lower().startswith("/zombie"):
+            return  # biar foto biasa tetap masuk ke handler media yang lain
+
+        # Ambil file_id foto resolusi terbesar
+        file_id = message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+
+        # Panggil API imagetozombie
+        api_url = "https://api.ferdev.my.id/tools/tozombie"  # ganti ke base API aslinya
+        params = {
+            "link": file_url,
+            "apikey": "key-Adhrian123"  # pakai API key kamu
+        }
+        resp = requests.get(api_url, params=params, timeout=30)
+        data = resp.json()
+
+        if data.get("status"):
+            result_url = data["result"]
+            bot.send_photo(message.chat.id, result_url, caption="🧟 Jadi zombie sudah selesai!")
+        else:
+            bot.reply_to(message, "❌ Gagal membuat zombie, coba lagi.")
+    except Exception as e:
+        logger.error(f"Zombie handler error: {e}")
+        bot.reply_to(message, "⚠️ Terjadi kesalahan saat memproses gambar.")
+
+
 # --- Media messages ---
 @bot.message_handler(content_types=['photo','video','audio','document','voice','sticker'])
 def media_handler(message):

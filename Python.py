@@ -254,33 +254,6 @@ def facebook_cmd(message):
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
 
-# ---  get chord fungsi
-
-# --- /chord ---
-@bot.message_handler(commands=["chord"])
-def chord_cmd(message):
-    try:
-        parts = message.text.split(" ", 1)
-        if len(parts) <= 1:
-            bot.reply_to(message, "❌ Gunakan: `/chord <keyword>`\n\nContoh: `/chord wali-bocah-ngapa-yang-enak`", parse_mode="Markdown")
-            return
-
-        keyword = parts[1].strip()
-        bot.send_chat_action(message.chat.id, "typing")
-
-        result = chord.getChord(keyword)
-        if result:
-            if len(result) > 5000:  # batasi sesuai limit Telegram
-                bot.reply_to(message, f"🎸 *Chord {keyword}:*\n\n{result[:5000]}...", parse_mode="Markdown")
-            else:
-                bot.reply_to(message, f"🎸 *Chord {keyword}:*\n\n{result}", parse_mode="Markdown")
-        else:
-            bot.reply_to(message, f"❌ Chord `{keyword}` tidak ditemukan.", parse_mode="Markdown")
-
-    except Exception as e:
-        logger.error(f"Chord error: {e}")
-        bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
-
 # --- Fallback text handler ---
 # --- Fallback text handler ---
 @bot.message_handler(commands=["chord"])

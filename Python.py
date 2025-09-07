@@ -1,5 +1,6 @@
 import os
 import logging
+import cloudscraper
 import requests
 from datetime import datetime
 from flask import Flask, request
@@ -130,6 +131,12 @@ def ai_cmd(message):
 # --- /Chord search ---
 def getChord(q):
     base = "https://www.chordtela.com/"
+    scraper = cloudscraper.create_scraper()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/115.0.0.0 Safari/537.36"
+    }
     try:
         url = f"{base}search/label/{q.replace(' ', '%20')}"
         res = scraper.get(url, headers=headers)

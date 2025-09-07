@@ -4,7 +4,7 @@ services:
     env: python
     plan: free  # bisa diganti ke starter/hobby sesuai kebutuhan
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: python Python.py
     envVars:
       - key: BOT_TOKEN
         sync: false

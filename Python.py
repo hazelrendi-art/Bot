@@ -326,12 +326,17 @@ def home():
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     try:
-        json_data = request.get_json()
+        json_data = request.get_json(force=True, silent=True)
+        logger.info(f"📩 Update masuk: {json_data}")   # Tambahin log biar kelihatan
+        if not json_data:
+            return "no data", 400
+
         update = telebot.types.Update.de_json(json_data)
         bot.process_new_updates([update])
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
+        logger.exception(f"Webhook error: {e}")
     return "OK", 200
+
 
 # ===== Setup webhook on start =====
 def setup_webhook():

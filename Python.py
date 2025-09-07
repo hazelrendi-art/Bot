@@ -270,7 +270,7 @@ def chord_cmd(message):
 
         result = chord.getChord(keyword)
         if result:
-            if len(result) > 4000:  # batasi sesuai limit Telegram
+            if len(result) > 5000:  # batasi sesuai limit Telegram
                 bot.reply_to(message, f"🎸 *Chord {keyword}:*\n\n{result[:4000]}...", parse_mode="Markdown")
             else:
                 bot.reply_to(message, f"🎸 *Chord {keyword}:*\n\n{result}", parse_mode="Markdown")

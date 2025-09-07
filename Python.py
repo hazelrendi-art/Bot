@@ -336,7 +336,7 @@ def tohitam_handler(message):
         files = {"file": ("image.jpg", file_bytes, "image/jpeg")}
         data = {"apikey": "key-Adhrian123"}
 
-        resp = requests.post(api_url,files=files,data=data, timeout=30)
+        resp = requests.get(api_url,files=files,data=data, timeout=60)
 
         if resp.status_code == 200:
             bot.send_photo(message.chat.id, resp.content, caption="🖤 Hasil foto hitam")

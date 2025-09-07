@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: telegram-bot
+    env: python
+    plan: free  # bisa diganti ke starter/hobby sesuai kebutuhan
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RENDER_URL
+        value: https://bot-lwq9.onrender.com

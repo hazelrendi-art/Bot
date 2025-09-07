@@ -2,7 +2,7 @@ import os
 import logging
 import cloudscraper
 import requests
-from bs4 import *
+from bs4 import BeautifulSoup 
 from datetime import datetime
 from flask import Flask, request
 import telebot

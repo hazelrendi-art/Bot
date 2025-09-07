@@ -314,44 +314,37 @@ def text_handler(message):
         bot.reply_to(message, f"Pesan diterima: {message.text}")
 
 
-# --- Zombie Generator ---
-@bot.message_handler(commands=['zombie'])
-def zombie_info(message):
+@bot.message_handler(commands=['tohitam'])
+def tohitam_info(message):
     bot.reply_to(
         message,
-        "🧟 Kirim foto ke saya dengan caption `/zombie` untuk diubah jadi zombie!",
+        "🖤 Kirim foto ke saya dengan caption `/tohitam` untuk diubah jadi hitam!",
         parse_mode="Markdown"
     )
 
 @bot.message_handler(content_types=['photo'])
-def zombie_handler(message):
+def image_handler(message):
     try:
-        # Pastikan user kasih caption /zombie
-        if not message.caption or not message.caption.lower().startswith("/zombie"):
-            return  # biar foto biasa tetap masuk ke handler media yang lain
+        # Hanya proses kalau ada caption /tohitam
+        if not message.caption or not message.caption.lower().startswith("/tohitam"):
+            return  
 
-        # Ambil file_id foto resolusi terbesar
         file_id = message.photo[-1].file_id
         file_info = bot.get_file(file_id)
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
 
-        # Panggil API imagetozombie
-        api_url = "https://api.ferdev.my.id/maker/tohitam"  # ganti ke base API aslinya
-        params = {
-            "link": file_url,
-            "apikey": "key-Adhrian123"  # pakai API key kamu
-        }
+        api_url = "https://api.ferdev.my.id/maker/tohitam"
+        params = {"link": file_url, "apikey": "key-Adhrian123"}
         resp = requests.get(api_url, params=params, timeout=30)
-        data = resp.json()
 
-        if data.get("status"):
-            result_url = data["result"]
-            bot.send_photo(message.chat.id, result_url, caption="🧟 Jadi zombie sudah selesai!")
+        if resp.status_code == 200:
+            bot.send_photo(message.chat.id, resp.content, caption="🖤 Hasil foto hitam")
         else:
-            bot.reply_to(message, "❌ Gagal membuat zombie, coba lagi.")
+            bot.reply_to(message, f"❌ API error: {resp.status_code}")
     except Exception as e:
-        logger.error(f"Zombie handler error: {e}")
+        logger.error(f"Tohitam handler error: {e}")
         bot.reply_to(message, "⚠️ Terjadi kesalahan saat memproses gambar.")
+
 
 
 # --- Media messages ---

@@ -257,7 +257,8 @@ def facebook_cmd(message):
 # ---  get chord fungsi
 
 @bot.message_handler(commands=["chord"])
-def chord_cmd(message)
+def chord_cmd(message):
+    key = message.text.
 
 # --- Fallback text handler ---
 # --- Fallback text handler ---

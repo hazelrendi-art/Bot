@@ -268,24 +268,79 @@ user_chords = {}
 user_transpose = {}
 user_chunks = {}   # simpan list message_id chunk tambahan
 
-# ===== TRANSPOSE =====
+# GANTIKAN fungsi transpose_chord & transpose_text lama dengan ini
+
+CHORD_ROOTS = ["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb",
+               "G", "G#", "Ab", "A", "A#", "Bb", "B"]
+# Normalisasi roots ke bentuk '#' untuk indexing
+NORMAL_MAP = {
+    "Db": "C#", "D#": "D#", "Eb": "D#", "F#": "F#", "Gb": "F#",
+    "G#": "G#", "Ab": "G#", "A#": "A#", "Bb": "A#", 
+    # keep naturals
+}
+
+# canonical order using sharps (12-tone)
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-def transpose_chord(chord, steps):
-    match = re.match(r"([A-G][#b]?)(.*)", chord)
-    if not match:
-        return chord
-    root, suffix = match.groups()
-    if root not in NOTES:
-        return chord
-    idx = NOTES.index(root)
+def normalize_root(root):
+    """Normalize root (Db -> C#, Eb -> D#, etc.) and keep uppercase."""
+    if root in NORMAL_MAP:
+        return NORMAL_MAP[root]
+    return root
+
+def transpose_chord(chord_token: str, steps: int) -> str:
+    """
+    Transpose a single chord token.
+    Supported token examples:
+      C, C#, Db, Am, A#m7, F#sus4, G/B, Em7/G, Dm9, Asus2
+    """
+    # split possible slash chord
+    if "/" in chord_token:
+        left, right = chord_token.split("/", 1)
+        return transpose_chord(left, steps) + "/" + transpose_chord(right, steps)
+
+    # match root + accidental + suffix (everything after root)
+    m = re.match(r"^([A-G])([#b]?)(.*)$", chord_token)
+    if not m:
+        return chord_token  # not a chord
+    root_base = m.group(1) + (m.group(2) or "")
+    suffix = m.group(3) or ""
+
+    root_norm = normalize_root(root_base)
+    # if normalization didn't map and root_norm not in NOTES, return unchanged
+    if root_norm not in NOTES:
+        return chord_token
+
+    idx = NOTES.index(root_norm)
     new_root = NOTES[(idx + steps) % len(NOTES)]
+    # preserve original accidental style? we'll return with sharps (consistent)
     return new_root + suffix
 
-def transpose_text(text, steps):
-    def repl(match):
-        return transpose_chord(match.group(0), steps)
-    return re.sub(r"[A-G][#b]?(m|maj|min|dim|aug|sus|add)?\d*", repl, text)
+def transpose_text(text: str, steps: int) -> str:
+    """
+    Transpose only chord tokens in the given text.
+    Uses a regex that matches chord tokens as whole words so normal lyrics are safe.
+    """
+    # Pattern explanation:
+    # \b - word boundary so not inside words
+    # ([A-G])([#b]?) - root letter + optional accidental
+    # (?:maj|min|m|dim|aug|sus|add|sus2|sus4|maj7|m7|7|9|11|13|add9|sus4|sus2|add2|add11|add13)? - optional modifiers (non-capturing)
+    # (?:\d+)? - optional number (for m7, 9, 11, etc)
+    # (?:/[A-G][#b]?)? - optional slash chord
+    # \b - end boundary
+    chord_pattern = re.compile(
+        r'\b([A-G][#b]?'
+        r'(?:maj7|maj|min|m7|m|dim|aug|sus2|sus4|sus|add9|add11|add13|add2|add)?\d*'
+        r'(?:/[A-G][#b]?)?)\b'
+    )
+
+    def _repl(m):
+        token = m.group(1)
+        return transpose_chord(token, steps)
+
+    # Only replace when token matches the chord pattern as a standalone token
+    return chord_pattern.sub(_repl, text)
+
 
 
 # ===== Fungsi helper untuk kirim chord panjang =====

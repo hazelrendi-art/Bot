@@ -287,6 +287,41 @@ def transpose_text(text, steps):
     return re.sub(r"[A-G][#b]?(m|maj|min|dim|aug|sus|add)?\d*", repl, text)
 
 
+MAX_CHAR = 4000  # biar aman sebelum limit 4096 Telegram
+
+def send_chord_chunks(chat_id, text, label, markup, msg_id=None):
+    """
+    Kirim atau edit chord dalam bentuk chunk (≤ MAX_CHAR).
+    Kalau msg_id ada, maka edit pesan pertama, sisanya dikirim baru.
+    """
+    chunks = [text[i:i+MAX_CHAR] for i in range(0, len(text), MAX_CHAR)]
+
+    if msg_id:
+        # edit pesan pertama
+        bot.edit_message_text(
+            f"🔄 {label}:\n\n```\n{chunks[0]}\n```",
+            chat_id=chat_id,
+            message_id=msg_id,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+        # kirim chunk sisanya
+        for c in chunks[1:]:
+            bot.send_message(chat_id, f"```\n{c}\n```", parse_mode="Markdown")
+    else:
+        # kirim pesan pertama
+        sent = bot.send_message(
+            chat_id,
+            f"🎸 {label}:\n\n```\n{chunks[0]}\n```",
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+        # kirim chunk sisanya
+        for c in chunks[1:]:
+            bot.send_message(chat_id, f"```\n{c}\n```", parse_mode="Markdown")
+        return sent
+
+
 
 @bot.message_handler(commands=["chord"])
 def chord_cmd(message):
@@ -312,7 +347,7 @@ def chord_cmd(message):
         user_chords[message.chat.id] = result
         user_transpose[message.chat.id] = 0
 
-        # buat tombol inline
+        # tombol inline
         markup = InlineKeyboardMarkup()
         markup.row(
             InlineKeyboardButton("➖1", callback_data="transpose_-1"),
@@ -320,16 +355,16 @@ def chord_cmd(message):
             InlineKeyboardButton("➕1", callback_data="transpose_1")
         )
 
-        bot.send_message(
-            message.chat.id,
-            f"🎸 *Chord {slug}:*\n\n```\n{result[:3000]}\n```",
-            parse_mode="Markdown",
-            reply_markup=markup
+        # gunakan helper chunk
+        send_chord_chunks(
+            chat_id=message.chat.id,
+            text=result,
+            label=f"*Chord {slug}*",
+            markup=markup
         )
     except Exception as e:
         logger.error(f"Chord error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
-
 
 
 
@@ -363,15 +398,17 @@ def callback_transpose(call):
             InlineKeyboardButton("➕1", callback_data="transpose_1")
         )
 
-        bot.edit_message_text(
-            f"🔄 {label}:\n\n```\n{hasil[:3000]}\n```",
+        # pakai helper chunk → edit pesan pertama, kirim sisanya
+        send_chord_chunks(
             chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            parse_mode="Markdown",
-            reply_markup=markup
+            text=hasil,
+            label=label,
+            markup=markup,
+            msg_id=call.message.message_id
         )
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Error: {e}")
+
 
 
 

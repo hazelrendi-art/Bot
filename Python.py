@@ -260,7 +260,46 @@ def facebook_cmd(message):
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
 
 
-# --- Fallback text handler ---
+# --- Helper Send ----
+
+def edit_or_send(bot, call, header, text, step, keyword, limit=4000):
+    """
+    Edit pesan chord lama kalau panjang <= limit,
+    kalau lebih panjang -> edit header + kirim potongan baru.
+    """
+    try:
+        if len(text) <= limit:
+            bot.edit_message_text(
+                f"{header}\n\n{text}",
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                parse_mode="Markdown"
+            )
+        else:
+            # Edit header saja biar tidak error
+            bot.edit_message_text(
+                header,
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                parse_mode="Markdown"
+            )
+            # Kirim potongan teks
+            for i in range(0, len(text), limit):
+                chunk = text[i:i+limit]
+                bot.send_message(call.message.chat.id, chunk, parse_mode="Markdown")
+
+        # === Inline Keyboard baru ===
+        markup = InlineKeyboardMarkup()
+        markup.row(
+            InlineKeyboardButton("⬆️ Naik", callback_data=f"transpose:{keyword}:{step+1}"),
+            InlineKeyboardButton("⬇️ Turun", callback_data=f"transpose:{keyword}:{step-1}")
+        )
+        bot.send_message(call.message.chat.id, "🔀 Transpose chord:", reply_markup=markup)
+
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ Error saat edit: {e}")
+
+
 
 # ===== SIMPAN DATA CHORD PER USER =====
 user_chords = {}
@@ -287,7 +326,6 @@ def transpose_text(text, steps):
 
 
 
-# --- /chord ---
 @bot.message_handler(commands=["chord"])
 def chord_cmd(message):
     try:
@@ -319,19 +357,24 @@ def chord_cmd(message):
             if step != 0:
                 result = chord.transpose_text(result, step)
 
-            limit = 4000
             header = f"🎸 *Chord {keyword}* (Transpose {step}):"
-            bot.reply_to(message, header, parse_mode="Markdown")
 
-            for i in range(0, len(result), limit):
-                chunk = result[i:i+limit]
-                bot.send_message(message.chat.id, chunk, parse_mode="Markdown")
+            if len(result) <= 4000:
+                sent = bot.send_message(
+                    message.chat.id,
+                    f"{header}\n\n{result}",
+                    parse_mode="Markdown"
+                )
+            else:
+                sent = bot.send_message(message.chat.id, header, parse_mode="Markdown")
+                for i in range(0, len(result), 4000):
+                    bot.send_message(message.chat.id, result[i:i+4000], parse_mode="Markdown")
 
-            # === Inline Keyboard untuk transpose ===
-            markup = types.InlineKeyboardMarkup()
+            # Inline Keyboard pertama
+            markup = InlineKeyboardMarkup()
             markup.row(
-                types.InlineKeyboardButton("⬆️ Naik", callback_data=f"transpose:{keyword}:{step+1}"),
-                types.InlineKeyboardButton("⬇️ Turun", callback_data=f"transpose:{keyword}:{step-1}")
+                InlineKeyboardButton("⬆️ Naik", callback_data=f"transpose:{keyword}:{step+1}"),
+                InlineKeyboardButton("⬇️ Turun", callback_data=f"transpose:{keyword}:{step-1}")
             )
             bot.send_message(message.chat.id, "🔀 Transpose chord:", reply_markup=markup)
 
@@ -343,7 +386,7 @@ def chord_cmd(message):
         bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
 
 
-# --- Handler callback Transpose ----
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("transpose:"))
 def transpose_callback(call):
     try:
@@ -355,21 +398,10 @@ def transpose_callback(call):
 
         if result:
             result = chord.transpose_text(result, step)
-            limit = 4000
             header = f"🎸 *Chord {keyword}* (Transpose {step}):"
-            bot.send_message(call.message.chat.id, header, parse_mode="Markdown")
 
-            for i in range(0, len(result), limit):
-                chunk = result[i:i+limit]
-                bot.send_message(call.message.chat.id, chunk, parse_mode="Markdown")
-
-            # Update tombol dengan step terbaru
-            markup = types.InlineKeyboardMarkup()
-            markup.row(
-                types.InlineKeyboardButton("⬆️ Naik", callback_data=f"transpose:{keyword}:{step+1}"),
-                types.InlineKeyboardButton("⬇️ Turun", callback_data=f"transpose:{keyword}:{step-1}")
-            )
-            bot.send_message(call.message.chat.id, "🔀 Transpose chord:", reply_markup=markup)
+            # Panggil helper untuk edit / kirim
+            edit_or_send(bot, call, header, result, step, keyword)
 
         else:
             bot.send_message(call.message.chat.id, f"❌ Chord `{keyword}` tidak ditemukan.", parse_mode="Markdown")
@@ -377,6 +409,7 @@ def transpose_callback(call):
     except Exception as e:
         logger.error(f"Transpose callback error: {e}")
         bot.send_message(call.message.chat.id, "❌ Error saat transpose chord.")
+
 
 
 

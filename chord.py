@@ -16,12 +16,12 @@ def getChord(keyword: str):
     Contoh: wali-bocah-ngapa-yang-enak
     """
     try:
-        url = f"{base}{keyword}.html"
+        url = f"{base}{keyword}"
         res = scraper.get(url, headers=headers)
 
         if res.status_code == 200:
             parsing = BeautifulSoup(res.text, "html.parser")
-            hasil = parsing.find('div')
+            hasil = parsing.find('pre')
             
             if hasil:
                 return hasil.text

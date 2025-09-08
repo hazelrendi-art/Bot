@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from flask import Flask, request
 import telebot
+from ToHitam import handle_tohitam
 
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -314,38 +315,15 @@ def text_handler(message):
         bot.reply_to(message, f"Pesan diterima: {message.text}")
 
 
-@bot.message_handler(commands=['tohitam'])
-def tohitam_info(message):
-    bot.reply_to(
-        message,
-        "🖤 Kirim foto ke saya dengan caption `/tohitam` untuk diubah jadi hitam!",
-        parse_mode="Markdown"
-    )
-
 @bot.message_handler(content_types=['photo'])
-def tohitam_handler(message):
-    try:
-        if not message.caption or not message.caption.lower().startswith("/tohitam"):
-            return  
+def photo_handler(message):
+    # Cek dulu apakah ini command /tohitam
+    if message.caption and message.caption.lower().startswith("/tohitam"):
+        handle_tohitam(bot, message)
+        return
 
-        file_id = message.photo[-1].file_id
-        file_info = bot.get_file(file_id)
-        file_bytes = bot.download_file(file_info.file_path)
-
-        api_url = "https://api.ferdev.my.id/maker/tohitam"
-        files = {"file": ("image.jpg", file_bytes, "image/jpeg")}
-        data = {"apikey": "key-Adhrian123"}
-
-        resp = requests.get(api_url,files=files,data=data, timeout=60)
-
-        if resp.status_code == 200:
-            bot.send_photo(message.chat.id, resp.content, caption="🖤 Hasil foto hitam")
-        else:
-            bot.reply_to(message, f"❌ API error {resp.status_code}: {resp.text}")
-    except Exception as e:
-        logger.error(f"Tohitam handler error: {e}")
-        bot.reply_to(message, "⚠️ Terjadi kesalahan saat memproses gambar.")
-
+    # Bisa tetap tangani media lain
+    bot.reply_to(message, "Terima kasih! Pesan media diterima ✅")
 
 
 # --- Media messages ---

@@ -468,22 +468,26 @@ def callback_transpose(call):
 #  --- Fallback text handler ---
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
-    # Fallback hanya aktif di private chat
-    if message.chat.type != "private" and message.chat.id != "6488874900":
-        return  
-    elif message.chat.type != "private" and message.chat.id == "6488874900":
-        name = message.from_user.username
-        bot.reply_to(message, f"perhatian! beri hormat!, Ketua {name} telah Tiba!")
+    OWNER_ID = 6488874900  # ganti dengan user ID kamu
+    
+    # Kalau chat grup DAN pengirim adalah kamu
+    if message.chat.type in ["group", "supergroup"]:
+        if message.from_user.id == OWNER_ID:
+            name = message.from_user.first_name or message.from_user.username or "Ketua"
+            bot.reply_to(message, f"🚨 Perhatian semua! Ketua {name} telah tiba! 👑")
+        return  # biar tidak lanjut ke logika private chat
 
-    text = message.text.lower()
-    name = message.from_user.first_name or "Friend"
+    # Kalau chat private
+    if message.chat.type == "private":
+        text = message.text.lower()
+        name = message.from_user.first_name or "Friend"
 
-    if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
-        bot.reply_to(message, f"Hello {name}! 👋")
-    elif 'bot' in text:
-        bot.reply_to(message, "Yes, saya bot 🤖")
-    else:
-        bot.reply_to(message, f"Pesan diterima: {message.text}")
+        if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
+            bot.reply_to(message, f"Hello {name}! 👋")
+        elif 'bot' in text:
+            bot.reply_to(message, "Yes, saya bot 🤖")
+        else:
+            bot.reply_to(message, f"Pesan diterima: {message.text}")
 
 
 @bot.message_handler(content_types=['photo'])

@@ -472,7 +472,8 @@ def text_handler(message):
     if message.chat.type != "private" and message.chat.id != "6488874900":
         return  
     elif message.chat.type != "private" and message.chat.id == "6488874900":
-        bot.reply_to(message.chat.id, f"perhatian! beri hormat Ketua telah Tiba!")
+        name = message.from_user.username
+        bot.reply_to(message, f"perhatian! beri hormat!, Ketua {name} telah Tiba!")
 
     text = message.text.lower()
     name = message.from_user.first_name or "Friend"

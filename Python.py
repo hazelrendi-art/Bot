@@ -266,6 +266,7 @@ def facebook_cmd(message):
 # ===== SIMPAN DATA CHORD PER USER =====
 user_chords = {}
 user_transpose = {}
+user_chunks = {}   # simpan list message_id chunk tambahan
 
 # ===== TRANSPOSE =====
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -287,42 +288,34 @@ def transpose_text(text, steps):
     return re.sub(r"[A-G][#b]?(m|maj|min|dim|aug|sus|add)?\d*", repl, text)
 
 
-MAX_CHAR = 4000  # biar aman sebelum limit 4096 Telegram
+# ===== Fungsi helper untuk kirim chord panjang =====
+def send_chord_chunks(chat_id, teks, slug, label="Asli", reply_markup=None):
+    MAX_LEN = 4000
+    chunks = [teks[i:i+MAX_LEN] for i in range(0, len(teks), MAX_LEN)]
+    sent_ids = []
 
-def send_chord_chunks(chat_id, text, label, markup, msg_id=None):
-    """
-    Kirim atau edit chord dalam bentuk chunk (≤ MAX_CHAR).
-    Kalau msg_id ada, maka edit pesan pertama, sisanya dikirim baru.
-    """
-    chunks = [text[i:i+MAX_CHAR] for i in range(0, len(text), MAX_CHAR)]
+    # kirim bagian pertama dengan tombol transpose
+    first_msg = bot.send_message(
+        chat_id,
+        f"🎸 *Chord {slug}* ({label}):\n\n```\n{chunks[0]}\n```",
+        parse_mode="Markdown",
+        reply_markup=reply_markup
+    )
+    sent_ids.append(first_msg.message_id)
 
-    if msg_id:
-        # edit pesan pertama
-        bot.edit_message_text(
-            f"🔄 {label}:\n\n```\n{chunks[0]}\n```",
-            chat_id=chat_id,
-            message_id=msg_id,
-            parse_mode="Markdown",
-            reply_markup=markup
-        )
-        # kirim chunk sisanya
-        for c in chunks[1:]:
-            bot.send_message(chat_id, f"```\n{c}\n```", parse_mode="Markdown")
-    else:
-        # kirim pesan pertama
-        sent = bot.send_message(
+    # kirim sisa chunk tanpa tombol
+    for c in chunks[1:]:
+        m = bot.send_message(
             chat_id,
-            f"🎸 {label}:\n\n```\n{chunks[0]}\n```",
-            parse_mode="Markdown",
-            reply_markup=markup
+            f"```\n{c}\n```",
+            parse_mode="Markdown"
         )
-        # kirim chunk sisanya
-        for c in chunks[1:]:
-            bot.send_message(chat_id, f"```\n{c}\n```", parse_mode="Markdown")
-        return sent
+        sent_ids.append(m.message_id)
+
+    return sent_ids
 
 
-
+# ===== Command /chord =====
 @bot.message_handler(commands=["chord"])
 def chord_cmd(message):
     try:
@@ -347,7 +340,7 @@ def chord_cmd(message):
         user_chords[message.chat.id] = result
         user_transpose[message.chat.id] = 0
 
-        # tombol inline
+        # buat tombol inline
         markup = InlineKeyboardMarkup()
         markup.row(
             InlineKeyboardButton("➖1", callback_data="transpose_-1"),
@@ -355,38 +348,36 @@ def chord_cmd(message):
             InlineKeyboardButton("➕1", callback_data="transpose_1")
         )
 
-        # gunakan helper chunk
-        send_chord_chunks(
-            chat_id=message.chat.id,
-            text=result,
-            label=f"*Chord {slug}*",
-            markup=markup
-        )
+        # kirim chord dalam bentuk chunk
+        sent_ids = send_chord_chunks(message.chat.id, result, slug, "Asli", markup)
+        user_chunks[message.chat.id] = sent_ids
+
     except Exception as e:
         logger.error(f"Chord error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
 
 
-
+# ===== Callback Transpose =====
 @bot.callback_query_handler(func=lambda call: call.data.startswith("transpose_"))
 def callback_transpose(call):
     try:
         action = call.data.split("_")[1]
+        chat_id = call.message.chat.id
 
-        if call.message.chat.id not in user_chords:
+        if chat_id not in user_chords:
             bot.answer_callback_query(call.id, "⚠️ Ambil chord dulu dengan /chord")
             return
 
-        teks = user_chords[call.message.chat.id]
+        teks = user_chords[chat_id]
 
         if action == "0":  # reset
-            user_transpose[call.message.chat.id] = 0
+            user_transpose[chat_id] = 0
             hasil = teks
-            label = "Reset (asli)"
+            label = "Asli"
         else:
             steps = int(action)
-            user_transpose[call.message.chat.id] += steps
-            total_steps = user_transpose[call.message.chat.id]
+            user_transpose[chat_id] += steps
+            total_steps = user_transpose[chat_id]
             hasil = transpose_text(teks, total_steps)
             label = f"Transpose {total_steps}"
 
@@ -398,16 +389,21 @@ def callback_transpose(call):
             InlineKeyboardButton("➕1", callback_data="transpose_1")
         )
 
-        # pakai helper chunk → edit pesan pertama, kirim sisanya
-        send_chord_chunks(
-            chat_id=call.message.chat.id,
-            text=hasil,
-            label=label,
-            markup=markup,
-            msg_id=call.message.message_id
-        )
+        # hapus semua chunk lama
+        if chat_id in user_chunks:
+            for mid in user_chunks[chat_id]:
+                try:
+                    bot.delete_message(chat_id, mid)
+                except:
+                    pass
+
+        # kirim ulang hasil transpose dalam chunk baru
+        sent_ids = send_chord_chunks(chat_id, hasil, "Lagu", label, markup)
+        user_chunks[chat_id] = sent_ids
+
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Error: {e}")
+
 
 
 

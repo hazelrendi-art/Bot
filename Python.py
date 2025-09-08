@@ -50,10 +50,7 @@ def start_cmd(message):
 Halo {message.from_user.first_name} 👋
 
 Perintah:
-/help - Daftar perintah
-/ai <pertanyaan> - Tanya AI
-/anonymous - Chat anonim
-/stop - Stop chat anonim
+/help - Daftar perintah Bot
 """
     bot.reply_to(message, text, parse_mode="Markdown")
 
@@ -66,8 +63,10 @@ def help_cmd(message):
 /help - Bantuan
 /info - Info bot
 /time - Waktu server
+/chord - mencari chord + lirik lagu
 /echo <text> - Echo message
-/facebook <link> - Download Facebook video
+/fb <link> - Download Facebook video
+/yt <link> - Download Youtube
 /ai <pertanyaan> - Tanya AI
 /anonymous - Chat anonim
 /stop - Keluar chat anonim
@@ -80,6 +79,7 @@ def info_cmd(message):
     text = f"""
 ℹ️ *Bot Info*
 🤖 Bot: PyTelegramBot
+😎 Owner : Rhyo
 ⚡ Status: Online
 📅 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 👤 Your ID: {message.from_user.id}
@@ -469,8 +469,10 @@ def callback_transpose(call):
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
     # Fallback hanya aktif di private chat
-    if message.chat.type != "private":
+    if message.chat.type != "private" and message.chat.id != "6488874900":
         return  
+    elif message.chat.type != "private" and message.chat.id == "6488874900":
+        bot.reply_to(message.chat.id, f"perhatian! beri hormat Ketua telah Tiba!")
 
     text = message.text.lower()
     name = message.from_user.first_name or "Friend"

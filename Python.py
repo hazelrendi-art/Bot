@@ -525,6 +525,10 @@ def webhook():
         logger.exception(f"Webhook error: {e}")
     return "OK", 200
 
+@app.route("/ping")
+def ping():
+    return "OK"
+
 
 # ===== Setup webhook on start =====
 def setup_webhook():

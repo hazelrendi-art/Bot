@@ -48,7 +48,7 @@ def getChord(keyword: str):
 
         if res.status_code == 200:
             parsing = BeautifulSoup(res.text, "html.parser")
-            hasil = parsing.find("pre")
+            hasil = parsing.find("div")
             if hasil:
                 return hasil.text
             return None

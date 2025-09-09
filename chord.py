@@ -44,7 +44,7 @@ def getChord(keyword: str):
     """Ambil chord dari chordtela."""
     try:
         url = f"{base}{keyword}.html"
-        res = scraper.get(url, headers=headers)
+        res = scraper.get(url, headers=headers,timeout=10)
 
         if res.status_code == 200:
             parsing = BeautifulSoup(res.text, "html.parser")

@@ -40,26 +40,41 @@ def transpose_text(text: str, step: int) -> str:
         result.append(" ".join(new_line))
     return "\n".join(result)
 
-def getChord(keyword: str):
-    """Ambil chord dari chordtela."""
-    try:
-        url = f"{base}{keyword}.html"
-        res = scraper.get(url, headers=headers,timeout=10)
+def getChord(keyword: str, retries=3, delay=2):
+    """
+    Ambil chord dari chordtela menggunakan cloudscraper dengan retry otomatis.
 
-        if res.status_code == 200:
+    :param keyword: slug lagu, misal 'rossa-jangan-hilangkan-dia-ost-i-love-you'
+    :param retries: jumlah percobaan sebelum gagal
+    :param delay: delay dalam detik antar retry
+    :return: teks chord, None jika tidak ditemukan, atau error string
+    """
+    url = f"{base}{keyword}.html"
+
+    for attempt in range(1, retries + 1):
+        try:
+            res = scraper.get(url, headers=headers, timeout=10)
+
+            if res.status_code != 200:
+                return None  # halaman tidak ditemukan
+
             parsing = BeautifulSoup(res.text, "html.parser")
-            
-            # Coba ambil dari div dulu
+
+            # Ambil chord dari <pre>
             hasil = parsing.find("pre")
             if hasil and hasil.text.strip():
                 return hasil.text
-            
-            # Jika div tidak ada lirik, coba ambil dari pre
+
+            # Fallback: ambil dari <div>
             fallback = parsing.find("div")
             if fallback and fallback.text.strip():
                 return fallback.text
 
-            return None
-        return None
-    except Exception as e:
-        return f"❌ Error: {e}"
+            return None  # tidak ada chord sama sekali
+
+        except Exception as e:
+            # Retry otomatis
+            if attempt < retries:
+                time.sleep(delay)
+            else:
+                return f"❌ Error: {e}"

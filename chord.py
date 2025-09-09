@@ -43,7 +43,7 @@ def transpose_text(text: str, step: int) -> str:
 def getChord(keyword: str):
     """Ambil chord dari chordtela."""
     try:
-        url = f"{base}{keyword}"
+        url = f"{base}{keyword}.html"
         res = scraper.get(url, headers=headers)
 
         if res.status_code == 200:

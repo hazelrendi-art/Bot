@@ -12,7 +12,6 @@ from telebot import types
 import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -36,8 +35,12 @@ logger = logging.getLogger(__name__)
 waiting_users = []
 active_chats = {}
 
-# ===== Groq AI =====
+# ===== Groq AI & State =====
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+ai_enabled = {}   # {chat_id: True/False}
+user_histories = {}  # {chat_id: [messages...]}
+AI_LOGIC = "Kamu adalah RioBot, AI buatan Rhyo. Jawablah dengan ramah, singkat, dan nyambung dengan percakapan sebelumnya."
+OWNER_ID = 6488874900  # ganti dengan user ID kamu
 
 # ===== Handlers =====
 
@@ -101,17 +104,44 @@ def echo_cmd(message):
     else:
         bot.reply_to(message, "Gunakan: `/echo <text>`", parse_mode="Markdown")
 
+# --- /aiOn ---
+@bot.message_handler(commands=['aiOn'])
+def ai_on_cmd(message):
+    chat_id = message.chat.id
+    ai_enabled[chat_id] = True
+    bot.reply_to(message, "✅ Mode AI *ON*", parse_mode="Markdown")
+
+# --- /aiOff ---
+@bot.message_handler(commands=['aiOff'])
+def ai_off_cmd(message):
+    chat_id = message.chat.id
+    ai_enabled[chat_id] = False
+    bot.reply_to(message, "🛑 Mode AI *OFF*", parse_mode="Markdown")
+
 # --- /ai ---
 @bot.message_handler(commands=['ai'])
 def ai_cmd(message):
     try:
+        chat_id = message.chat.id
+        # cek status AI untuk chat ini
+        if not ai_enabled.get(chat_id, False):
+            bot.reply_to(message, "⚠️ Mode AI sedang *OFF*. Aktifkan dengan `/aiOn`", parse_mode="Markdown")
+            return
+
         parts = message.text.split(' ', 1)
         if len(parts) <= 1:
             bot.reply_to(message, "❌ Gunakan: `/ai <pertanyaan>`", parse_mode="Markdown")
             return
 
         user_query = parts[1].strip()
-        bot.send_chat_action(message.chat.id, 'typing')
+
+        # inisialisasi history chat jika belum ada
+        if chat_id not in user_histories:
+            user_histories[chat_id] = [{"role": "system", "content": AI_LOGIC}]
+
+        # tambahkan pertanyaan user ke history
+        user_histories[chat_id].append({"role": "user", "content": user_query})
+        bot.send_chat_action(chat_id, 'typing')
 
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -119,15 +149,20 @@ def ai_cmd(message):
         }
         payload = {
             "model": "llama-3.1-8b-instant",
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": user_query}
-            ]
+            "messages": user_histories[chat_id]
         }
+
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
-            answer = data["choices"][0]["message"]["content"]
+            # safety: guard path existence
+            answer = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if not answer:
+                bot.reply_to(message, "❌ AI tidak memberikan jawaban yang valid.")
+                return
+
+            # simpan jawaban ke history
+            user_histories[chat_id].append({"role": "assistant", "content": answer})
             bot.reply_to(message, f"🤖 *AI Response:*\n{answer}", parse_mode="Markdown")
         else:
             bot.reply_to(message, f"❌ AI Error: {resp.status_code}")
@@ -177,9 +212,6 @@ def relay_message(message):
     if partner_id:
         bot.send_message(partner_id, f"💬 {message.text}")
 
-
-
-
 # --- /DOWNLOADER FUNCTION----TOOLS
 # --- /youtube_Downloader ---
 @bot.message_handler(commands =['yt'])
@@ -215,10 +247,8 @@ def youtube_cmd(message):
             bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id,
                                     message_id=msg.message_id)
     except Exception as e:
-        logger.error(f"Facebook error: {e}")
+        logger.error(f"Youtube error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Youtube.")
-
-
 
 # --- /facebook_Downloader ---
 @bot.message_handler(commands=['fb'])
@@ -258,10 +288,6 @@ def facebook_cmd(message):
     except Exception as e:
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
-
-
-
-
 
 # ===== SIMPAN DATA CHORD PER USER =====
 user_chords = {}
@@ -341,8 +367,6 @@ def transpose_text(text: str, steps: int) -> str:
     # Only replace when token matches the chord pattern as a standalone token
     return chord_pattern.sub(_repl, text)
 
-
-
 # ===== Fungsi helper untuk kirim chord panjang =====
 def send_chord_chunks(chat_id, teks, slug, label="Asli", reply_markup=None):
     MAX_LEN = 4000
@@ -368,7 +392,6 @@ def send_chord_chunks(chat_id, teks, slug, label="Asli", reply_markup=None):
         sent_ids.append(m.message_id)
 
     return sent_ids
-
 
 # ===== Command /chord =====
 @bot.message_handler(commands=["chord"])
@@ -410,7 +433,6 @@ def chord_cmd(message):
     except Exception as e:
         logger.error(f"Chord error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
-
 
 # ===== Callback Transpose =====
 @bot.callback_query_handler(func=lambda call: call.data.startswith("transpose_"))
@@ -459,36 +481,8 @@ def callback_transpose(call):
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Error: {e}")
 
-
-
-
-
-
-
-#  --- Fallback text handler ---
-@bot.message_handler(content_types=['text'])
-def text_handler(message):
-    OWNER_ID = 6488874900  # ganti dengan user ID kamu
-    
-    # Kalau chat grup DAN pengirim adalah kamu
-    if message.chat.type in ["group", "supergroup"]:
-        if message.from_user.id == OWNER_ID:
-            name = message.from_user.first_name or message.from_user.username or "Ketua"
-            bot.reply_to(message, f"🚨 Perhatian semua! Ketua {name} telah tiba! 👑")
-        return  # biar tidak lanjut ke logika private chat
-
-    # Kalau chat private
-    if message.chat.type == "private":
-        text = message.text.lower()
-        name = message.from_user.first_name or "Friend"
-
-        if any(g in text for g in ['hello', 'hi', 'halo', 'hey']):
-            bot.reply_to(message, f"Hello {name}! 👋")
-        elif 'bot' in text:
-            bot.reply_to(message, "Yes, saya bot 🤖")
-        else:
-            bot.reply_to(message, f"Pesan diterima: {message.text}")
-
+#  --- Fallback text handler (already defined above as AI-aware) ---
+# (keberadaan handler di file ini sudah menangani owner greeting & group AI control)
 
 @bot.message_handler(content_types=['photo'])
 def photo_handler(message):
@@ -499,7 +493,6 @@ def photo_handler(message):
 
     # Bisa tetap tangani media lain
     bot.reply_to(message, "Terima kasih! Pesan media diterima ✅")
-
 
 # --- Media messages ---
 @bot.message_handler(content_types=['photo','video','audio','document','voice','sticker'])
@@ -528,7 +521,6 @@ def webhook():
 @app.route("/ping")
 def ping():
     return "OK"
-
 
 # ===== Setup webhook on start =====
 def setup_webhook():

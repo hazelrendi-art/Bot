@@ -48,9 +48,17 @@ def getChord(keyword: str):
 
         if res.status_code == 200:
             parsing = BeautifulSoup(res.text, "html.parser")
-            hasil = parsing.find("div")
-            if hasil:
+            
+            # Coba ambil dari div dulu
+            hasil = parsing.find("pre")
+            if hasil and hasil.text.strip():
                 return hasil.text
+            
+            # Jika div tidak ada lirik, coba ambil dari pre
+            fallback = parsing.find("div")
+            if fallback and fallback.text.strip():
+                return fallback.text
+
             return None
         return None
     except Exception as e:

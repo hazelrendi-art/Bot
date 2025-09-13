@@ -13,6 +13,24 @@ from telebot import types
 import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+# di atas setelah inisialisasi bot
+from Perchance import generate_perchance_image, parse_cookie_header, ensure_valid_session, USER_AGENT, REFERER, USER_COOKIE_STRING
+import cloudscraper
+
+scraper = cloudscraper.create_scraper(browser={"custom": USER_AGENT})
+scraper.headers.update({
+    "User-Agent": USER_AGENT,
+    "Referer": REFERER,
+    "Origin": "https://image-generation.perchance.org",
+    "Accept": "*/*",
+    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+})
+
+if USER_COOKIE_STRING.strip():
+    ck = parse_cookie_header(USER_COOKIE_STRING)
+    for k, v in ck.items():
+        scraper.cookies.set(k, v, domain=".perchance.org")
+
 
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -369,6 +387,29 @@ def send_chord_chunks(chat_id, teks, slug, label="Asli", reply_markup=None):
         sent_ids.append(m.message_id)
 
     return sent_ids
+
+
+# --- Perchance Commands ---
+
+@bot.message_handler(commands=['buat'])
+def gen_cmd(message):
+    parts = message.text.split(' ', 1)
+    if len(parts) <= 1:
+        bot.reply_to(message, "❌ Contoh: `/gen kucing di bulan`", parse_mode="Markdown")
+        return
+
+    prompt = parts[1].strip()
+    bot.reply_to(message, f"⏳ Sedang generate gambar untuk:\n`{prompt}`", parse_mode="Markdown")
+
+    try:
+        fname, err = generate_perchance_image(scraper, prompt)
+        if err:
+            bot.reply_to(message, err)
+        else:
+            with open(fname, "rb") as img:
+                bot.send_photo(message.chat.id, img, caption=f"✅ Hasil untuk `{prompt}`", parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error generate: {e}")
 
 
 # ===== Command /chord =====

@@ -1,23 +1,22 @@
 import os
 import logging
 import requests
-from datetime import datetime
+import json
+import re
 from flask import Flask, request
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import json
-import re
 from ToHitam import handle_tohitam
-import chord  # pastikan modul chord ada
+import chord  # pastikan modul chord tersedia
 
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-RENDER_URL = os.getenv("RENDER_URL")  # contoh https://namabot.onrender.com
+RENDER_URL = os.getenv("RENDER_URL")  # contoh: https://namabot.onrender.com
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 if not BOT_TOKEN or not GROQ_API_KEY or not RENDER_URL:
-    raise ValueError("❌ Pastikan semua environment variable sudah diset!")
+    raise ValueError("❌ Pastikan BOT_TOKEN, GROQ_API_KEY, dan RENDER_URL sudah diset!")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -26,12 +25,12 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# ===== Chord state per user =====
+# ===== State Chord per User =====
 user_chords = {}
 user_transpose = {}
 user_chunks = {}
 
-NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 NORMAL_MAP = {"Db":"C#","Eb":"D#","Gb":"F#","Ab":"G#","Bb":"A#"}
 
 def normalize_root(root):
@@ -47,111 +46,116 @@ def transpose_chord(chord_token: str, steps: int) -> str:
     root_norm = normalize_root(root_base)
     if root_norm not in NOTES: return chord_token
     idx = NOTES.index(root_norm)
-    new_root = NOTES[(idx + steps)%12]
+    new_root = NOTES[(idx + steps) % 12]
     return new_root + suffix
 
 def transpose_text(text:str, steps:int) -> str:
     chord_pattern = re.compile(r'\b([A-G][#b]?'
                                r'(?:maj7|maj|min|m7|m|dim|aug|sus2|sus4|sus|add9|add11|add13|add2|add)?\d*'
                                r'(?:/[A-G][#b]?)?)\b')
-    def _repl(m): return transpose_chord(m.group(1), steps)
-    return chord_pattern.sub(_repl, text)
+    return chord_pattern.sub(lambda m: transpose_chord(m.group(1), steps), text)
 
 def send_chord_chunks(chat_id, teks, slug, label="Asli", reply_markup=None):
     MAX_LEN = 4000
-    chunks = [teks[i:i+MAX_LEN] for i in range(0,len(teks),MAX_LEN)]
-    sent_ids=[]
-    first_msg = bot.send_message(chat_id,
+    chunks = [teks[i:i+MAX_LEN] for i in range(0, len(teks), MAX_LEN)]
+    sent_ids = []
+    first = bot.send_message(chat_id,
         f"🎸 *Chord {slug}* ({label}):\n\n```\n{chunks[0]}\n```",
         parse_mode="Markdown", reply_markup=reply_markup)
-    sent_ids.append(first_msg.message_id)
+    sent_ids.append(first.message_id)
     for c in chunks[1:]:
         m = bot.send_message(chat_id, f"```\n{c}\n```", parse_mode="Markdown")
         sent_ids.append(m.message_id)
     return sent_ids
 
-# ===== Internal command functions =====
+# ===== Internal Commands =====
 def chord_cmd(message, slug):
     try:
         result = chord.getChord(slug)
         if not result:
             bot.reply_to(message, f"❌ Chord `{slug}` tidak ditemukan.", parse_mode="Markdown")
             return
-        user_chords[message.chat.id]=result
-        user_transpose[message.chat.id]=0
-        markup=InlineKeyboardMarkup()
-        markup.row(InlineKeyboardButton("➖1", callback_data="transpose_-1"),
-                   InlineKeyboardButton("🔄 Reset", callback_data="transpose_0"),
-                   InlineKeyboardButton("➕1", callback_data="transpose_1"))
+        user_chords[message.chat.id] = result
+        user_transpose[message.chat.id] = 0
+        markup = InlineKeyboardMarkup()
+        markup.row(
+            InlineKeyboardButton("➖1", callback_data="transpose_-1"),
+            InlineKeyboardButton("🔄 Reset", callback_data="transpose_0"),
+            InlineKeyboardButton("➕1", callback_data="transpose_1")
+        )
         sent_ids = send_chord_chunks(message.chat.id, result, slug, "Asli", markup)
-        user_chunks[message.chat.id]=sent_ids
+        user_chunks[message.chat.id] = sent_ids
     except Exception as e:
         logger.error(f"Chord error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat mencari chord.")
 
 def youtube_cmd(message, url):
     try:
-        msg=bot.reply_to(message,"⏳ Processing Youtube...")
-        api_url="https://api.ferdev.my.id/downloader/ytmp4"
-        params={"link":url,"apikey":"key-Adhrian123"}
+        msg = bot.reply_to(message,"⏳ Processing Youtube...")
+        api_url = "https://api.ferdev.my.id/downloader/ytmp4"
+        params = {"link":url,"apikey":"key-Adhrian123"}
         resp = requests.get(api_url, params=params, timeout=30)
-        if resp.status_code==200:
-            data=resp.json()
-            if data.get('success'):
-                d=data.get('data',{})
-                title=d.get('title','Video Youtube')
-                dlinks=d.get('dlink')
-                teks=f"✅ Sukses mendapatkan Link {title}\n"
-                if dlinks: teks+=f"[Download]({dlinks})"
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("success"):
+                d = data.get("data", {})
+                title = d.get("title","Video Youtube")
+                link = d.get("dlink")
+                teks = f"✅ *{title}*\n"
+                if link: teks += f"[Download]({link})"
                 bot.edit_message_text(teks, chat_id=msg.chat.id, message_id=msg.message_id,
                                       parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id, message_id=msg.message_id)
+                bot.edit_message_text(f"❌ API error: {data.get('message')}",
+                                      chat_id=msg.chat.id, message_id=msg.message_id)
         else:
-            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id, message_id=msg.message_id)
+            bot.edit_message_text(f"❌ Request failed: {resp.status_code}",
+                                  chat_id=msg.chat.id, message_id=msg.message_id)
     except Exception as e:
         logger.error(f"Youtube error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan saat download Youtube.")
 
 def facebook_cmd(message, url):
     try:
-        msg=bot.reply_to(message,"⏳ Processing Facebook...")
-        api_url="https://api.ferdev.my.id/downloader/facebook"
-        params={"link":url,"apikey":"key-Adhrian123"}
+        msg = bot.reply_to(message,"⏳ Processing Facebook...")
+        api_url = "https://api.ferdev.my.id/downloader/facebook"
+        params = {"link":url,"apikey":"key-Adhrian123"}
         resp = requests.get(api_url, params=params, timeout=30)
-        if resp.status_code==200:
-            data=resp.json()
-            if data.get('success'):
-                d=data.get('data',{})
-                hd_url=d.get('hd'); sd_url=d.get('sd')
-                title=d.get('title','Video Facebook')
-                teks=f"✅ *Download: {title}*\n"
-                if hd_url: teks+=f"• [HD]({hd_url})\n"
-                if sd_url: teks+=f"• [SD]({sd_url})"
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("success"):
+                d = data.get("data", {})
+                title = d.get("title","Video Facebook")
+                hd = d.get("hd"); sd = d.get("sd")
+                teks = f"✅ *{title}*\n"
+                if hd: teks += f"• [HD]({hd})\n"
+                if sd: teks += f"• [SD]({sd})"
                 bot.edit_message_text(teks, chat_id=msg.chat.id, message_id=msg.message_id,
                                       parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                bot.edit_message_text(f"❌ API error: {data.get('message')}", chat_id=msg.chat.id, message_id=msg.message_id)
+                bot.edit_message_text(f"❌ API error: {data.get('message')}",
+                                      chat_id=msg.chat.id, message_id=msg.message_id)
         else:
-            bot.edit_message_text(f"❌ Request failed: {resp.status_code}", chat_id=msg.chat.id, message_id=msg.message_id)
+            bot.edit_message_text(f"❌ Request failed: {resp.status_code}",
+                                  chat_id=msg.chat.id, message_id=msg.message_id)
     except Exception as e:
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan saat download Facebook.")
 
-# ===== AI Dispatcher Handler (Natural Language) =====
-@bot.message_handler(func=lambda m: True, content_types=['text','photo'])
+# ===== AI Dispatcher =====
+@bot.message_handler(func=lambda m: True, content_types=["text","photo"])
 def ai_dispatch_handler(message):
     user_input = message.text or message.caption or ""
-    # Konteks untuk AI: jelaskan semua fitur bot
     context = """
-Kamu adalah asisten bot Telegram. Bot ini bisa:
-1. Download Youtube (/yt <link>)
-2. Download Facebook (/fb <link>)
-3. Cari chord (/chord <slug>)
-4. Edit foto menjadi hitam putih (/tohitam)
-5. Balas pertanyaan biasa (/ai)
-Beri output dalam JSON: {"action":"chord|yt|fb|edit_photo|reply","params":{...}}
-Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
+Kamu adalah dispatcher bot Telegram.
+Fitur bot:
+1. Download Youtube → {"action":"yt","params":{"url":"<link>"}}
+2. Download Facebook → {"action":"fb","params":{"url":"<link>"}}
+3. Cari chord → {"action":"chord","params":{"slug":"<judul>"}}
+4. Edit foto jadi hitam putih → {"action":"edit_photo","params":{}}
+5. Chat biasa → {"action":"reply","params":{"text":"jawaban"}}
+
+Selalu balas dengan JSON VALID.
 """
 
     payload = {
@@ -164,27 +168,26 @@ Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
     try:
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code != 200:
-            bot.reply_to(message, f"❌ AI Error: {resp.status_code}")
+            bot.reply_to(message, f"❌ AI Error {resp.status_code}")
             return
-        data = resp.json()
-        ai_content = data["choices"][0]["message"]["content"]
+        ai_content = resp.json()["choices"][0]["message"]["content"].strip()
         try:
             ai_json = json.loads(ai_content)
-        except:
-            bot.reply_to(message, ai_content)
-            return
+        except Exception:
+            logger.warning(f"AI output bukan JSON: {ai_content}")
+            ai_json = {"action":"reply","params":{"text":ai_content}}
         action = ai_json.get("action")
         params = ai_json.get("params",{})
-        if action=="chord":
-            slug=params.get("slug")
+        if action == "chord":
+            slug = params.get("slug"); 
             if slug: chord_cmd(message, slug)
-        elif action=="yt":
-            url=params.get("url")
+        elif action == "yt":
+            url = params.get("url"); 
             if url: youtube_cmd(message, url)
-        elif action=="fb":
-            url=params.get("url")
+        elif action == "fb":
+            url = params.get("url"); 
             if url: facebook_cmd(message, url)
-        elif action=="edit_photo":
+        elif action == "edit_photo":
             handle_tohitam(bot, message)
         else:
             bot.reply_to(message, params.get("text","🤖 AI Response"))
@@ -192,16 +195,15 @@ Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
         logger.error(f"AI dispatch error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan AI.")
 
-# ===== Flask webhook =====
+# ===== Webhook Flask =====
 @app.route("/")
 def home(): return "Bot Online!"
+
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     try:
-        json_data = request.get_json(force=True, silent=True)
-        if json_data:
-            update = telebot.types.Update.de_json(json_data)
-            bot.process_new_updates([update])
+        update = telebot.types.Update.de_json(request.get_json(force=True, silent=True))
+        if update: bot.process_new_updates([update])
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return "OK", 200
@@ -221,5 +223,5 @@ setup_webhook()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"🤖 Telegram Bot Starting on port {port}...")
+    print(f"🤖 Bot Running on port {port} ...")
     app.run(host="0.0.0.0", port=port)

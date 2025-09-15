@@ -155,7 +155,7 @@ Fitur bot:
 4. Edit foto jadi hitam putih → {"action":"edit_photo","params":{}}
 5. Chat biasa → {"action":"reply","params":{"text":"jawaban"}}
 
-Selalu balas dengan JSON VALID.
+⚠️ Penting: Hanya balas JSON VALID. User tidak boleh melihat JSON.
 """
 
     payload = {
@@ -176,21 +176,25 @@ Selalu balas dengan JSON VALID.
         except Exception:
             logger.warning(f"AI output bukan JSON: {ai_content}")
             ai_json = {"action":"reply","params":{"text":ai_content}}
+
         action = ai_json.get("action")
         params = ai_json.get("params",{})
+
+        # 👇 Eksekusi fitur sesuai action, user tidak akan lihat JSON
         if action == "chord":
-            slug = params.get("slug"); 
+            slug = params.get("slug")
             if slug: chord_cmd(message, slug)
         elif action == "yt":
-            url = params.get("url"); 
+            url = params.get("url")
             if url: youtube_cmd(message, url)
         elif action == "fb":
-            url = params.get("url"); 
+            url = params.get("url")
             if url: facebook_cmd(message, url)
         elif action == "edit_photo":
             handle_tohitam(bot, message)
         else:
             bot.reply_to(message, params.get("text","🤖 AI Response"))
+
     except Exception as e:
         logger.error(f"AI dispatch error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan AI.")

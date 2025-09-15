@@ -217,4 +217,9 @@ def setup_webhook():
     except Exception as e:
         logger.error(f"❌ Failed to set webhook: {e}")
 
-setup
+setup_webhook()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    print(f"🤖 Telegram Bot Starting on port {port}...")
+    app.run(host="0.0.0.0", port=port)

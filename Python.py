@@ -138,11 +138,20 @@ def facebook_cmd(message, url):
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan saat download Facebook.")
 
-# ===== AI Dispatcher Handler (Natural Language) =====
-@bot.message_handler(func=lambda m: True, content_types=['text','photo'])
+# ===== Photo handler for /tohitam =====
+@bot.message_handler(content_types=['photo'])
+def photo_handler(message):
+    # Caption /tohitam atau via AI
+    if (message.caption and "tohitam" in message.caption.lower()) or getattr(message, "ai_action", None)=="edit_photo":
+        handle_tohitam(bot, message)
+    else:
+        # Biarkan AI dispatcher handle jika ada caption lain
+        ai_dispatch_handler(message)
+
+# ===== AI Dispatcher Handler =====
+@bot.message_handler(func=lambda m: True, content_types=['text'])
 def ai_dispatch_handler(message):
-    user_input = message.text or message.caption or ""
-    # Konteks untuk AI: jelaskan semua fitur bot
+    user_input = message.text or ""
     context = """
 Kamu adalah asisten bot Telegram. Bot ini bisa:
 1. Download Youtube (/yt <link>)
@@ -153,7 +162,6 @@ Kamu adalah asisten bot Telegram. Bot ini bisa:
 Beri output dalam JSON: {"action":"chord|yt|fb|edit_photo|reply","params":{...}}
 Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
 """
-
     payload = {
         "model":"llama-3.1-8b-instant",
         "messages":[{"role":"system","content":context},
@@ -175,6 +183,9 @@ Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
             return
         action = ai_json.get("action")
         params = ai_json.get("params",{})
+        # Tandai message supaya photo handler bisa membaca action
+        setattr(message, "ai_action", action)
+
         if action=="chord":
             slug=params.get("slug")
             if slug: chord_cmd(message, slug)
@@ -222,4 +233,4 @@ setup_webhook()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🤖 Telegram Bot Starting on port {port}...")
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port

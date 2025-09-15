@@ -187,7 +187,7 @@ Jika hanya membalas teks, gunakan action="reply" dan params{"text":"..."}
         elif action=="edit_photo":
             handle_tohitam(bot, message)
         else:
-            bot.reply_to(message, params.get("text","🤖 AI Response"), parse_mode="Markdown")
+            bot.reply_to(message, params.get("text","🤖 AI Response"))
     except Exception as e:
         logger.error(f"AI dispatch error: {e}")
         bot.reply_to(message,"❌ Terjadi kesalahan AI.")

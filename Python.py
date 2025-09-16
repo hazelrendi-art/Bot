@@ -155,7 +155,7 @@ Fitur bot:
 4. Edit foto jadi hitam putih → {"action":"edit_photo","params":{}}
 5. Chat biasa → {"action":"reply","params":{"text":"jawaban"}}
 
-⚠️ Penting: Hanya balas JSON VALID. User tidak boleh melihat JSON.
+⚠️ Penting: jika user meminta mengktifkan command dari fitur bot, kamu harus mengeksekusinya, dan untuk fitur tohitam lansung kirim kan link gambar yang sudah jadi ke user,atau lansung send hasil gambarnya yang sudah jadi
 """
 
     payload = {

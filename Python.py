@@ -12,7 +12,9 @@ from ToHitam import handle_tohitam
 from telebot import types
 import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import JavtifulScraper
 
+scraper = JavtifulScraper()
 
 # ===== Config =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -259,7 +261,31 @@ def facebook_cmd(message):
     except Exception as e:
         logger.error(f"Facebook error: {e}")
         bot.reply_to(message, "❌ Terjadi kesalahan saat download Facebook.")
+    
 
+# --- /jav ---
+@bot.message_handler(commands=['jav'])
+def jav_cmd(message):
+    try:
+        parts = message.text.split(' ', 1)
+        if len(parts) <= 1:
+            bot.reply_to(message, "❌ Gunakan: `/jav <link>`", parse_mode="Markdown")
+            return
+
+        jav_url = parts[1].strip()
+        msg = bot.reply_to(message, "⏳ Processing...")
+
+        try:
+            video_url = scraper.get_video_url(jav_url)
+            teks = f"✅ Video link ditemukan:\n{video_url}"
+            bot.edit_message_text(teks, chat_id=msg.chat.id, message_id=msg.message_id,
+                                  disable_web_page_preview=True)
+        except Exception as e:
+            bot.edit_message_text(f"❌ Error: {str(e)}", chat_id=msg.chat.id, message_id=msg.message_id)
+
+    except Exception as e:
+        logger.error(f"JAV error: {e}")
+        bot.reply_to(message, "❌ Terjadi kesalahan saat ambil video JAV.")
 
 
 

@@ -2,23 +2,23 @@ import cloudscraper
 from bs4 import BeautifulSoup
 
 class JavtifulScraper:
-    def __init__(self, proxy_host="127.0.0.1", proxy_port=9050):
+    def __init__(self): #proxy_host="127.0.0.1", proxy_port=9050):
         """
         Inisialisasi scraper dengan konfigurasi Tor SOCKS5 proxy.
         Default: 127.0.0.1:9050
         """
         self.scraper = cloudscraper.create_scraper()
-        self.proxies = {
-            "http": f"socks5h://{proxy_host}:{proxy_port}",
-            "https": f"socks5h://{proxy_host}:{proxy_port}"
-        }
+        #self.proxies = {
+            #"http": f"socks5h://{proxy_host}:{proxy_port}",
+            #"https": f"socks5h://{proxy_host}:{proxy_port}"
+        #}
 
     def get_video_url(self, url: str) -> str:
         """
         Ambil URL video dari link javtiful.com
         """
         # GET halaman video
-        html = self.scraper.get(url, proxies=self.proxies).text
+        html = self.scraper.get(url).text
         soup = BeautifulSoup(html, "html.parser")
 
         # Ambil CSRF token dari element dengan id "token_full"
@@ -42,7 +42,7 @@ class JavtifulScraper:
         res = self.scraper.post(
             "https://javtiful.com/ajax/get_cdn",
             data=data,
-            proxies=self.proxies
+            #proxies=self.proxies
         ).json()
 
         # Validasi hasil

@@ -12,7 +12,7 @@ from ToHitam import handle_tohitam
 from telebot import types
 import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import JavtifulScraper
+from client import JavtifulScraper
 
 scraper = JavtifulScraper()
 

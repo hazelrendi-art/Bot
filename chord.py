@@ -1,6 +1,7 @@
 # chord.py
 import cloudscraper
 from bs4 import BeautifulSoup
+import time
 
 scraper = cloudscraper.create_scraper()
 base = "https://www.chordtela.com/"
